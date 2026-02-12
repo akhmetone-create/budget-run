@@ -19,7 +19,6 @@ const isWall = (x: number, y: number) => {
 
 export const GameBoard: React.FC<GameBoardProps> = ({ onGameOver, onScoreUpdate, onWin, difficulty }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
   const requestRef = useRef<number>(0);
   const [touchStart, setTouchStart] = useState<{ x: number, y: number } | null>(null);
 
@@ -32,7 +31,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ onGameOver, onScoreUpdate,
     pos: { ...INITIAL_PLAYER_POS },
     dir: Direction.NONE,
     nextDir: Direction.NONE,
-    speed: 0.03, // Base speed (slowed down 5x from original 0.15)
+    speed: 0.03,
     color: COLORS.MARKETER_SKIN
   });
 
@@ -49,31 +48,24 @@ export const GameBoard: React.FC<GameBoardProps> = ({ onGameOver, onScoreUpdate,
   const frameCountRef = useRef(0);
   const powerModeTimerRef = useRef(0);
 
-  // Helper to calculate ghost speed based on identity, difficulty, and multiplier
   const getGhostSpeed = (ghost: Ghost, multiplier: number) => {
     if (ghost.mode === 'FRIGHTENED') {
-        return 0.01 * multiplier; // Frightened speed scales too
+        return 0.01 * multiplier; 
     }
-    
     let diffMult = 1;
     if (difficulty === Difficulty.EASY) diffMult = 0.8;
     if (difficulty === Difficulty.HARD) diffMult = 1.3;
-
-    // Base calculation: ((0.08 + (id * 0.01)) / 5) * diffMult * multiplier
     return ((0.08 + (ghost.id * 0.01)) / 5) * diffMult * multiplier;
   };
 
-  // Initial difficulty setup
   useEffect(() => {
     ghostsRef.current.forEach(g => {
         g.speed = getGhostSpeed(g, 1);
     });
   }, [difficulty]);
 
-  // Keyboard Controls
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Prevent default scrolling with arrow keys
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
         e.preventDefault();
       }
@@ -88,9 +80,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ onGameOver, onScoreUpdate,
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Touch Controls
   const handleTouchStart = (e: React.TouchEvent) => {
-    // e.preventDefault(); // Passive listeners are default in React 18, so we rely on CSS touch-action: none
     setTouchStart({ x: e.touches[0].clientX, y: e.touches[0].clientY });
   };
 
@@ -101,7 +91,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({ onGameOver, onScoreUpdate,
     const diffX = endX - touchStart.x;
     const diffY = endY - touchStart.y;
     
-    // Minimum swipe distance to avoid accidental direction changes on taps
     const minSwipeDistance = 30;
 
     if (Math.abs(diffX) > Math.abs(diffY)) {
@@ -116,7 +105,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({ onGameOver, onScoreUpdate,
     setTouchStart(null);
   };
 
-  // Movement Logic
   const canMove = (x: number, y: number, dir: Direction) => {
     const tolerance = 0.1;
     const intX = Math.round(x);
@@ -209,8 +197,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({ onGameOver, onScoreUpdate,
     }
   };
 
-  // --- RENDERING HELPERS ---
-
   const drawModernWall = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
     ctx.fillStyle = COLORS.WALL_BASE;
     ctx.fillRect(x, y, size, size);
@@ -243,7 +229,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({ onGameOver, onScoreUpdate,
 
     const glassesY = centerY - 2;
     const glassSize = radius / 2.5;
-
     let lookX = 0;
     let lookY = 0;
     if (dir === Direction.LEFT) lookX = -2;
@@ -308,21 +293,16 @@ export const GameBoard: React.FC<GameBoardProps> = ({ onGameOver, onScoreUpdate,
     ctx.fill();
   };
 
-  // Main Game Loop
   const loop = (time: number) => {
-    if (!canvasRef.current || !containerRef.current) return;
+    if (!canvasRef.current) return;
     const ctx = canvasRef.current.getContext('2d');
     if (!ctx) return;
 
-    // Initialize Timer
     if (!startTimeRef.current) startTimeRef.current = time;
     const elapsed = time - startTimeRef.current;
 
-    // --- SPEED INCREASE LOGIC ---
-    // Every 30 seconds (30000ms), increase multiplier by 1.5x
     const stage = Math.floor(elapsed / 30000);
-    const targetMultiplier = Math.min(Math.pow(1.5, stage), 5); // Cap at 5x
-
+    const targetMultiplier = Math.min(Math.pow(1.5, stage), 5);
     const multiplierChanged = targetMultiplier !== speedMultiplierRef.current;
     
     if (multiplierChanged) {
@@ -335,7 +315,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({ onGameOver, onScoreUpdate,
 
     frameCountRef.current++;
 
-    // 1. Update State
     moveEntity(playerRef.current);
     
     const px = Math.round(playerRef.current.pos.x);
@@ -389,7 +368,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({ onGameOver, onScoreUpdate,
         }
     });
 
-    // 2. Render
     ctx.fillStyle = COLORS.BG;
     ctx.fillRect(0, 0, canvasRef.current.width, canvasRef.current.height);
     
@@ -401,7 +379,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({ onGameOver, onScoreUpdate,
     const offsetX = (w - (cols * ts)) / 2;
     const offsetY = (h - (rows * ts)) / 2;
 
-    // Draw Map
     for(let r=0; r<rows; r++) {
         for(let c=0; c<cols; c++) {
             const tile = pelletsRef.current[r][c];
@@ -444,15 +421,20 @@ export const GameBoard: React.FC<GameBoardProps> = ({ onGameOver, onScoreUpdate,
   };
 
   useEffect(() => {
-    // Canvas resizing logic
+    // Canvas resizing - logic now relies on the parent container size provided by App.tsx
+    // But we still need to set internal resolution of canvas to match its display size for 4K crispness
     const handleResize = () => {
-        const container = containerRef.current;
         const canvas = canvasRef.current;
-        if (!container || !canvas) return;
+        if (!canvas) return;
         
+        // The canvas display size is determined by CSS (100% of parent)
+        // We just need to upscale the internal resolution for retina displays
         const dpr = window.devicePixelRatio || 1;
-        const rect = container.getBoundingClientRect();
+        const rect = canvas.getBoundingClientRect();
         
+        // Avoid 0 dimensions
+        if (rect.width === 0 || rect.height === 0) return;
+
         canvas.width = rect.width * dpr;
         canvas.height = rect.height * dpr;
         
@@ -472,16 +454,16 @@ export const GameBoard: React.FC<GameBoardProps> = ({ onGameOver, onScoreUpdate,
   }, []);
 
   return (
-    <div ref={containerRef} className="relative w-full aspect-[21/20] max-h-full flex items-center justify-center">
+    <div className="w-full h-full relative">
         <canvas 
             ref={canvasRef} 
-            className="w-full h-full bg-[#050505] rounded-xl shadow-[0_0_20px_rgba(139,92,246,0.2)] sm:shadow-[0_0_50px_rgba(139,92,246,0.3)] border border-white/10 touch-none"
+            className="w-full h-full bg-[#050505] touch-none block"
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
             style={{ imageRendering: 'pixelated' }}
         />
         {speedMultiplierRef.current > 1 && (
-            <div className="absolute top-2 right-2 px-2 py-1 bg-brand-danger/20 border border-brand-danger rounded text-xs text-brand-danger font-bold animate-pulse pointer-events-none">
+            <div className="absolute top-2 right-2 px-2 py-1 bg-brand-danger/20 border border-brand-danger rounded text-[10px] sm:text-xs text-brand-danger font-bold animate-pulse pointer-events-none">
                 {speedMultiplierRef.current.toFixed(1)}x SPEED
             </div>
         )}
