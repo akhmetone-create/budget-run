@@ -42,27 +42,27 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="relative w-full h-screen flex flex-col items-center justify-center bg-brand-dark overflow-hidden font-mono">
+    <div className="relative w-full h-[100dvh] flex flex-col items-center justify-center bg-brand-dark overflow-hidden font-mono touch-none">
       {/* Background decoration */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/20 via-brand-dark to-brand-dark pointer-events-none" />
 
       {/* Main Game Container */}
-      <div className="relative z-10 w-full max-w-2xl h-full max-h-[90vh] flex flex-col items-center">
+      <div className="relative z-10 w-full max-w-lg h-full flex flex-col items-center justify-between safe-area-inset-padding">
         
         {/* Header / Scoreboard */}
-        <div className="w-full px-6 py-4 flex justify-between items-end bg-gradient-to-b from-black/80 to-transparent">
+        <div className="w-full px-4 pt-4 pb-2 flex justify-between items-end bg-gradient-to-b from-black/90 to-transparent shrink-0 z-20">
           <div className="flex flex-col">
-            <span className="text-xs text-brand-neon uppercase tracking-widest opacity-80">Budget Collected</span>
-            <span className="text-2xl font-bold text-white tabular-nums drop-shadow-md">${score.toLocaleString()}</span>
+            <span className="text-[10px] sm:text-xs text-brand-neon uppercase tracking-widest opacity-80">Budget Collected</span>
+            <span className="text-xl sm:text-2xl font-bold text-white tabular-nums drop-shadow-md">${score.toLocaleString()}</span>
           </div>
           <div className="flex flex-col items-end">
-             <span className="text-xs text-brand-danger uppercase tracking-widest opacity-80">High Score</span>
-             <span className="text-xl font-bold text-gray-400 tabular-nums">${highScore.toLocaleString()}</span>
+             <span className="text-[10px] sm:text-xs text-brand-danger uppercase tracking-widest opacity-80">High Score</span>
+             <span className="text-lg sm:text-xl font-bold text-gray-400 tabular-nums">${highScore.toLocaleString()}</span>
           </div>
         </div>
 
         {/* Game Area */}
-        <div className="flex-1 w-full flex items-center justify-center p-4">
+        <div className="flex-1 w-full flex items-center justify-center p-2 sm:p-4 min-h-0 relative">
            {gameState === GameState.PLAYING ? (
              <GameBoard 
                onGameOver={handleGameOver} 
@@ -83,7 +83,7 @@ const App: React.FC = () => {
            )}
         </div>
         
-        <div className="pb-6 text-center text-xs text-gray-500 opacity-50">
+        <div className="pb-4 sm:pb-6 text-center text-[10px] sm:text-xs text-gray-500 opacity-50 shrink-0">
           Swipe to Move • Avoid the Finance Dept
         </div>
       </div>

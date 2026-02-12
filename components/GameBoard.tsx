@@ -19,6 +19,7 @@ const isWall = (x: number, y: number) => {
 
 export const GameBoard: React.FC<GameBoardProps> = ({ onGameOver, onScoreUpdate, onWin, difficulty }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const requestRef = useRef<number>(0);
   const [touchStart, setTouchStart] = useState<{ x: number, y: number } | null>(null);
 
@@ -72,6 +73,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({ onGameOver, onScoreUpdate,
   // Keyboard Controls
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Prevent default scrolling with arrow keys
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        e.preventDefault();
+      }
       switch (e.key) {
         case 'ArrowUp': playerRef.current.nextDir = Direction.UP; break;
         case 'ArrowDown': playerRef.current.nextDir = Direction.DOWN; break;
@@ -85,6 +90,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ onGameOver, onScoreUpdate,
 
   // Touch Controls
   const handleTouchStart = (e: React.TouchEvent) => {
+    // e.preventDefault(); // Passive listeners are default in React 18, so we rely on CSS touch-action: none
     setTouchStart({ x: e.touches[0].clientX, y: e.touches[0].clientY });
   };
 
@@ -94,11 +100,18 @@ export const GameBoard: React.FC<GameBoardProps> = ({ onGameOver, onScoreUpdate,
     const endY = e.changedTouches[0].clientY;
     const diffX = endX - touchStart.x;
     const diffY = endY - touchStart.y;
+    
+    // Minimum swipe distance to avoid accidental direction changes on taps
+    const minSwipeDistance = 30;
 
     if (Math.abs(diffX) > Math.abs(diffY)) {
-      playerRef.current.nextDir = diffX > 0 ? Direction.RIGHT : Direction.LEFT;
+      if (Math.abs(diffX) > minSwipeDistance) {
+        playerRef.current.nextDir = diffX > 0 ? Direction.RIGHT : Direction.LEFT;
+      }
     } else {
-      playerRef.current.nextDir = diffY > 0 ? Direction.DOWN : Direction.UP;
+      if (Math.abs(diffY) > minSwipeDistance) {
+        playerRef.current.nextDir = diffY > 0 ? Direction.DOWN : Direction.UP;
+      }
     }
     setTouchStart(null);
   };
@@ -297,7 +310,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ onGameOver, onScoreUpdate,
 
   // Main Game Loop
   const loop = (time: number) => {
-    if (!canvasRef.current) return;
+    if (!canvasRef.current || !containerRef.current) return;
     const ctx = canvasRef.current.getContext('2d');
     if (!ctx) return;
 
@@ -312,14 +325,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ onGameOver, onScoreUpdate,
 
     const multiplierChanged = targetMultiplier !== speedMultiplierRef.current;
     
-    // Apply speed if multiplier changed
     if (multiplierChanged) {
         speedMultiplierRef.current = targetMultiplier;
-        
-        // Update Player Speed (Base 0.03 * multiplier)
         playerRef.current.speed = 0.03 * targetMultiplier;
-        
-        // Update Ghost Speeds
         ghostsRef.current.forEach(g => {
             g.speed = getGhostSpeed(g, targetMultiplier);
         });
@@ -343,7 +351,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({ onGameOver, onScoreUpdate,
             powerModeTimerRef.current = 600;
             ghostsRef.current.forEach(g => {
                 g.mode = 'FRIGHTENED';
-                // Recalculate speed for frightened mode with current multiplier
                 g.speed = getGhostSpeed(g, speedMultiplierRef.current);
             });
         }
@@ -360,7 +367,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({ onGameOver, onScoreUpdate,
         if (powerModeTimerRef.current === 0) {
             ghostsRef.current.forEach(g => {
                 g.mode = 'SCATTER';
-                // Reset speed to normal (with current multiplier)
                 g.speed = getGhostSpeed(g, speedMultiplierRef.current);
             });
         }
@@ -405,14 +411,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ onGameOver, onScoreUpdate,
             if (LEVEL_MAP[r][c] === 1) {
                 drawModernWall(ctx, x, y, ts);
             } else if (tile === 0) {
-                // Budget Coin -> Dollar Sign
                 ctx.fillStyle = COLORS.BUDGET_DOT;
                 ctx.font = `bold ${ts * 0.7}px sans-serif`;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillText('$', x + ts/2, y + ts/2 + (ts*0.05));
             } else if (tile === 2) {
-                // Viral Pellet (Pulsing)
                 const pulse = (Math.sin(frameCountRef.current * 0.15) + 1) * 0.3 + 0.7;
                 ctx.fillStyle = COLORS.VIRAL_PELLET;
                 ctx.beginPath();
@@ -426,12 +430,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({ onGameOver, onScoreUpdate,
         }
     }
 
-    // Draw Player (Marketer)
     const playerX = offsetX + playerRef.current.pos.x * ts;
     const playerY = offsetY + playerRef.current.pos.y * ts;
     drawMarketer(ctx, playerX, playerY, ts, playerRef.current.dir);
 
-    // Draw Ghosts (Financiers)
     ghostsRef.current.forEach(ghost => {
         const gx = offsetX + ghost.pos.x * ts;
         const gy = offsetY + ghost.pos.y * ts;
@@ -442,37 +444,44 @@ export const GameBoard: React.FC<GameBoardProps> = ({ onGameOver, onScoreUpdate,
   };
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    
-    const ctx = canvas.getContext('2d');
-    if (ctx) ctx.scale(dpr, dpr);
+    // Canvas resizing logic
+    const handleResize = () => {
+        const container = containerRef.current;
+        const canvas = canvasRef.current;
+        if (!container || !canvas) return;
+        
+        const dpr = window.devicePixelRatio || 1;
+        const rect = container.getBoundingClientRect();
+        
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        
+        const ctx = canvas.getContext('2d');
+        if (ctx) ctx.scale(dpr, dpr);
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
 
     requestRef.current = requestAnimationFrame(loop);
 
     return () => {
+        window.removeEventListener('resize', handleResize);
         if (requestRef.current) cancelAnimationFrame(requestRef.current);
     };
   }, []);
 
   return (
-    <div className="relative w-full h-full max-w-[500px] max-h-[500px]">
+    <div ref={containerRef} className="relative w-full aspect-[21/20] max-h-full flex items-center justify-center">
         <canvas 
             ref={canvasRef} 
-            className="w-full h-full bg-[#050505] rounded-xl shadow-[0_0_50px_rgba(139,92,246,0.3)] border border-white/10 touch-none"
+            className="w-full h-full bg-[#050505] rounded-xl shadow-[0_0_20px_rgba(139,92,246,0.2)] sm:shadow-[0_0_50px_rgba(139,92,246,0.3)] border border-white/10 touch-none"
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
             style={{ imageRendering: 'pixelated' }}
         />
-        {/* Speed Multiplier Indicator */}
         {speedMultiplierRef.current > 1 && (
-            <div className="absolute top-2 right-2 px-2 py-1 bg-brand-danger/20 border border-brand-danger rounded text-xs text-brand-danger font-bold animate-pulse">
+            <div className="absolute top-2 right-2 px-2 py-1 bg-brand-danger/20 border border-brand-danger rounded text-xs text-brand-danger font-bold animate-pulse pointer-events-none">
                 {speedMultiplierRef.current.toFixed(1)}x SPEED
             </div>
         )}
